@@ -11,6 +11,7 @@ MY_DIR = Path(__file__).resolve().parent
 class Test(unittest.TestCase):
     def test_yaml_parses(self):
         respond_to_issues.parse_rotation_yaml(MY_DIR / "rotation.yaml")
+        assert False
 
 
 if __name__ == '__main__':
