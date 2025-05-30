@@ -1,10 +1,8 @@
 name: 'Set up Repo Environment'
-description: 'Checks out the repository and sets up Python'
+description: 'Sets up Python and its deps'
 runs:
   using: "composite"
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
