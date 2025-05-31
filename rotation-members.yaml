@@ -1,0 +1,8 @@
+# A listing of members for the rotation.
+#
+# `./extend_rotation.py` can be used to extend the rotation.yaml
+members:
+  - foo
+  - bar
+  - baz
+  - qux
