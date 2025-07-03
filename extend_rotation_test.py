@@ -4,11 +4,8 @@ import datetime
 import unittest
 from unittest.mock import patch
 
-from extend_rotation import (
-    MIN_TIME_UTC,
-    find_most_recent_service_times,
-    generate_additional_rotations,
-)
+from extend_rotation import (MIN_TIME_UTC, find_most_recent_service_times,
+                             generate_additional_rotations)
 from rotations import Rotation
 
 MOCKED_NOW_UTC = datetime.datetime(2025, 5, 30, 10, 0, 0, tzinfo=datetime.timezone.utc)
@@ -18,7 +15,7 @@ EXPECTED_FIRST_ROTATION_START_NO_PRIORS = datetime.datetime(
 
 
 class TestFindMostRecentServiceTimes(unittest.TestCase):
-    def test_no_rotations(self):
+    def test_no_rotations(self) -> None:
         members = ["alice", "bob"]
         result = find_most_recent_service_times([], members)
         expected = {
@@ -27,7 +24,7 @@ class TestFindMostRecentServiceTimes(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_basic_rotations(self):
+    def test_basic_rotations(self) -> None:
         members = ["alice", "bob", "charlie"]
         time1 = datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc)
         time2 = datetime.datetime(2023, 1, 15, tzinfo=datetime.timezone.utc)
@@ -44,7 +41,7 @@ class TestFindMostRecentServiceTimes(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_member_in_multiple_rotations_gets_latest(self):
+    def test_member_in_multiple_rotations_gets_latest(self) -> None:
         members = ["alice", "bob", "charlie"]
         time1 = datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc)
         time2 = datetime.datetime(2023, 1, 15, tzinfo=datetime.timezone.utc)
@@ -64,7 +61,7 @@ class TestFindMostRecentServiceTimes(unittest.TestCase):
 
 
 class TestGenerateAdditionalRotations(unittest.TestCase):
-    def test_generate_no_prior_rotations(self):
+    def test_generate_no_prior_rotations(self) -> None:
         members = ["alice", "bob", "charlie"]
         rotation_length_weeks = 1
         people_per_rotation = 2
@@ -83,7 +80,7 @@ class TestGenerateAdditionalRotations(unittest.TestCase):
         self.assertEqual(generated_list[1].start_time, expected_start_time2)
         self.assertEqual(generated_list[1].members, ["charlie", "alice"])
 
-    def test_generate_with_prior_rotations(self):
+    def test_generate_with_prior_rotations(self) -> None:
         prior_time = datetime.datetime(
             2025, 5, 5, 0, 0, 0, tzinfo=datetime.timezone.utc
         )

@@ -6,17 +6,18 @@ mentioning folks who are oncall.
 """
 
 import argparse
-import json
-from pathlib import Path
-import textwrap
 import dataclasses
+import json
 import logging
 import os
-import time
 import smtplib
-from email.mime.text import MIMEText
+import textwrap
+import time
 from email.mime.multipart import MIMEMultipart
-from typing import Optional, Set
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Any, Optional, Set
+
 import requests
 
 import rotations
@@ -44,13 +45,13 @@ class ScriptState:
     last_alert_about_rotation: Optional[float] = None
 
     @classmethod
-    def from_json(cls, json_data: dict) -> "ScriptState":
+    def from_json(cls, json_data: dict[str, Any]) -> "ScriptState":
         return cls(
             seen_advisories=json_data.get("seen_advisories", []),
             last_alert_about_rotation=json_data.get("last_alert_about_rotation"),
         )
 
-    def to_json(self) -> dict:
+    def to_json(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
     @classmethod
@@ -61,7 +62,7 @@ class ScriptState:
         except FileNotFoundError:
             return cls(seen_advisories=[])
 
-    def save_to_file(self, state_file: Path):
+    def save_to_file(self, state_file: Path) -> None:
         tmp_file = state_file.with_suffix(".tmp")
         with tmp_file.open("w", encoding="utf-8") as f:
             json.dump(self.to_json(), f, indent=2, ensure_ascii=False)

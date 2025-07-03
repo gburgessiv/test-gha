@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-from typing import Dict, List, Iterator
 import argparse
 import collections
 import dataclasses
 import datetime
 import logging
+from pathlib import Path
+from typing import Dict, Iterator, List
 
 import rotations
 
