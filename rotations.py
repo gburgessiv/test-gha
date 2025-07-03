@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
-from typing import List, Dict, Any
 import dataclasses
 import datetime
 import logging
+from pathlib import Path
+from typing import Any, Dict, List
+
 import yaml
 
 ROTATION_FILE = Path(__file__).resolve().parent / "rotation.yaml"
