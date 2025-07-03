@@ -21,3 +21,6 @@ jobs:
 
       - name: Run rotation extension tests
         run: python3 extend_rotation_test.py
+
+      - name: Run pyright
+        run: pyright *.py
