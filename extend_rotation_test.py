@@ -4,8 +4,11 @@ import datetime
 import unittest
 from unittest.mock import patch
 
-from extend_rotation import (MIN_TIME_UTC, find_most_recent_service_times,
-                             generate_additional_rotations)
+from extend_rotation import (
+    MIN_TIME_UTC,
+    find_most_recent_service_times,
+    generate_additional_rotations,
+)
 from rotations import Rotation
 
 MOCKED_NOW_UTC = datetime.datetime(2025, 5, 30, 10, 0, 0, tzinfo=datetime.timezone.utc)

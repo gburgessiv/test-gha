@@ -27,3 +27,9 @@ jobs:
 
       - name: Run mypy
         run: mypy . --explicit-package-bases --strict
+
+      - name: Run isort
+        run: isort . --check-only
+
+      - name: Run black
+        run: black . --check
