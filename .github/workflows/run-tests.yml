@@ -24,3 +24,6 @@ jobs:
 
       - name: Run pyright
         run: pyright *.py
+
+      - name: Run mypy
+        run: mypy . --explicit-package-bases
