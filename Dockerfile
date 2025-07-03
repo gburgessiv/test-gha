@@ -16,4 +16,13 @@ RUN \
 USER email-bot
 WORKDIR /home/email-bot
 
+# Example build'n'run invocation:
+# docker build -t llvm-security-group-emails . && docker run --rm -it -v $PWD:/home/email-bot/llvm-security-repo llvm-security-group-emails
+#
+# Example `secrets` file:
+# export EMAIL_RECIPIENT=receiver@redacted.com
+# export GITHUB_REPOSITORY=llvm/llvm-security-repo
+# export GITHUB_TOKEN=[redacted]
+# export GMAIL_PASSWORD=[redacted]
+# export GMAIL_USERNAME=sender@redacted.com
 CMD ["bash", "-c", "cd llvm-security-repo && . secrets && exec ./email_about_issues.py --state-file=state.json --debug"]
