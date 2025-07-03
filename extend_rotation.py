@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     opts = parse_args()
 
     logging.basicConfig(
