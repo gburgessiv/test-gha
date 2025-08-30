@@ -3,7 +3,7 @@ name: Run Tests
 on:
   pull_request:
     paths:
-      - '*.py'
+      - '**/*.py'
       - '.github/**'
 
 jobs:
@@ -17,19 +17,19 @@ jobs:
         uses: ./.github/actions/setup-repo-env
 
       - name: Run email script tests
-        run: python3 email_about_issues_test.py
+        run: python3 email-rotation/email_about_issues_test.py
 
       - name: Run rotation extension tests
-        run: python3 extend_rotation_test.py
+        run: python3 email-rotation/extend_rotation_test.py
 
       - name: Run pyright
-        run: pyright *.py
+        run: pyright email-rotation/*.py
 
       - name: Run mypy
-        run: mypy . --explicit-package-bases --strict
+        run: mypy email-rotation/ --explicit-package-bases --strict
 
       - name: Run isort
-        run: isort . --check-only
+        run: isort email-rotation/ --check-only
 
       - name: Run black
-        run: black . --check
+        run: black email-rotation/ --check
