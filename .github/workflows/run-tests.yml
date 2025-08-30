@@ -17,19 +17,25 @@ jobs:
         uses: ./.github/actions/setup-repo-env
 
       - name: Run email script tests
-        run: python3 email-rotation/email_about_issues_test.py
+        run: python3 email_about_issues_test.py
+        working-directory: ./email-rotation
 
       - name: Run rotation extension tests
-        run: python3 email-rotation/extend_rotation_test.py
+        run: python3 extend_rotation_test.py
+        working-directory: ./email-rotation
 
       - name: Run pyright
-        run: pyright email-rotation/*.py
+        run: pyright *.py
+        working-directory: ./email-rotation
 
       - name: Run mypy
-        run: mypy email-rotation/ --explicit-package-bases --strict
+        run: mypy . --explicit-package-bases --strict
+        working-directory: ./email-rotation
 
       - name: Run isort
-        run: isort email-rotation/ --check-only
+        run: isort . --check-only
+        working-directory: ./email-rotation
 
       - name: Run black
-        run: black email-rotation/ --check
+        run: black . --check
+        working-directory: ./email-rotation
