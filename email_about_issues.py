@@ -141,8 +141,7 @@ def fetch_all_security_advisories_of_type(
     return results
 
 
-def list_unpublished_security_advisories(
-    repo_name: str, github_token: str, now: float
+    repo_name: str, github_token: str
 ) -> list[SecurityAdvisory]:
     results = []
     total_security_advisories = 0
