@@ -99,8 +99,13 @@ def extract_next_page_from_header(resp: requests.Response) -> str | None:
         return None
 
     for link in link_header.split(","):
-        if link.endswith('rel="next"'):
-            return link.split(";")[0].strip("<> ")
+        split_link = link.split(";", 1)
+        if len(split_link) < 2:
+            logging.warning("Malformed Link header: %s", link_header)
+            continue
+        url, meta = split_link
+        if 'rel="next"' in meta:
+            return url.strip("<> ")
     return None
 
 
@@ -141,12 +146,15 @@ def fetch_all_security_advisories_of_type(
     return results
 
 
+def list_unpublished_security_advisories(
     repo_name: str, github_token: str
 ) -> list[SecurityAdvisory]:
     results = []
     total_security_advisories = 0
     advisories = fetch_all_security_advisories_of_type(repo_name, github_token, "draft")
-    advisories += fetch_all_security_advisories_of_type(repo_name, github_token, "triage")
+    advisories += fetch_all_security_advisories_of_type(
+        repo_name, github_token, "triage"
+    )
     for advisory in advisories:
         logging.debug("Examining advisory %s", advisory)
 
@@ -336,7 +344,8 @@ def run_script(
     rotation_state: RotationState,
 ) -> ScriptState:
     draft_security_advisories = list_unpublished_security_advisories(
-        invocation.repo_name, invocation.github_token, now=invocation.now_timestamp,
+        invocation.repo_name,
+        invocation.github_token,
     )
 
     failed_alerts_for_advisories = set()
