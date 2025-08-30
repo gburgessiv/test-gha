@@ -25,4 +25,4 @@ WORKDIR /home/email-bot
 # export GITHUB_TOKEN=[redacted]
 # export GMAIL_PASSWORD=[redacted]
 # export GMAIL_USERNAME=sender@redacted.com
-CMD ["bash", "-c", "cd llvm-security-repo/email-rotation && . secrets && exec ./email_about_issues.py --state-file=state.json --debug"]
+CMD ["bash", "-c", "cd llvm-security-repo/email-rotation && . ../secrets && exec ./email_about_issues.py --state-file=state.json --debug --dry-run"]
