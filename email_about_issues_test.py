@@ -7,24 +7,25 @@ from unittest import mock
 import email_about_issues as email
 import rotations
 
+# Test constant for email configuration
+TEST_EMAIL_INFO = email.ScriptEmailInfo(
+    creds=email.EmailCreds(
+        username="test_user@example.com",
+        password="fake_password123",
+    ),
+    recipient="foo@bar.com",
+)
+
 
 class TestEmailAboutIssues(unittest.TestCase):
-    @mock.patch("email_about_issues.rotations.RotationMembersFile.parse_file")
-    @mock.patch("email_about_issues.rotations.RotationFile.parse_file")
+    @mock.patch.object(rotations.RotationMembersFile, "parse_file")
+    @mock.patch.object(rotations.RotationFile, "parse_file")
     def test_load_rotation_state_returns_expected(
         self, mock_rotationfile_parse: mock.Mock, mock_membersfile_parse: mock.Mock
     ) -> None:
         mock_membersfile_parse.return_value = rotations.RotationMembersFile(
             members=["alice", "bob", "carol"]
         )
-
-        # Setup mock rotation file
-        class FakeRotation:
-            def __init__(
-                self, start_time: datetime.datetime, members: list[str]
-            ) -> None:
-                self.start_time = start_time
-                self.members = members
 
         mock_rotationfile_parse.return_value = rotations.RotationFile(
             rotations=[
@@ -49,17 +50,15 @@ class TestEmailAboutIssues(unittest.TestCase):
         self.assertEqual(result.all_members, {"alice", "bob", "carol"})
         self.assertEqual(result.final_rotation_start, 1800.0)
 
-    @mock.patch("email_about_issues.try_email_llvm_security_team")
+    @mock.patch.object(email, "try_email_llvm_security_team")
     def test_maybe_email_about_rotation_end_sends_email(
         self, mock_send_email: mock.Mock
     ) -> None:
         invocation = email.ScriptInvocation(
-            email_creds=mock.Mock(),
-            email_recipient="foo@bar.com",
             repo_name="repo",
             github_token="token",
             now_timestamp=2000.0,
-            dry_run=False,
+            email_info=TEST_EMAIL_INFO,
         )
         state = email.ScriptState(seen_advisories=[], last_alert_about_rotation=None)
         rotation_state = email.RotationState(
@@ -77,17 +76,15 @@ class TestEmailAboutIssues(unittest.TestCase):
         self.assertNotEqual(new_state, state)
         self.assertEqual(new_state.last_alert_about_rotation, invocation.now_timestamp)
 
-    @mock.patch("email_about_issues.try_email_llvm_security_team")
+    @mock.patch.object(email, "try_email_llvm_security_team")
     def test_maybe_email_about_rotation_end_no_email_if_too_early(
         self, mock_send_email: mock.Mock
     ) -> None:
         invocation = email.ScriptInvocation(
-            email_creds=mock.Mock(),
-            email_recipient="foo@bar.com",
             repo_name="repo",
             github_token="token",
             now_timestamp=2000.0,
-            dry_run=False,
+            email_info=TEST_EMAIL_INFO,
         )
         state = email.ScriptState(seen_advisories=[], last_alert_about_rotation=None)
         rotation_state = email.RotationState(
@@ -104,17 +101,15 @@ class TestEmailAboutIssues(unittest.TestCase):
         mock_send_email.assert_not_called()
         self.assertEqual(new_state, state)
 
-    @mock.patch("email_about_issues.try_email_llvm_security_team")
+    @mock.patch.object(email, "try_email_llvm_security_team")
     def test_maybe_email_about_rotation_end_respects_alert_interval(
         self, mock_send_email: mock.Mock
     ) -> None:
         invocation = email.ScriptInvocation(
-            email_creds=mock.Mock(),
-            email_recipient="foo@bar.com",
             repo_name="repo",
             github_token="token",
             now_timestamp=2000.0,
-            dry_run=False,
+            email_info=TEST_EMAIL_INFO,
         )
         state = email.ScriptState(
             seen_advisories=[], last_alert_about_rotation=invocation.now_timestamp

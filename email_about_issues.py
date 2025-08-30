@@ -7,6 +7,7 @@ mentioning folks who are oncall.
 
 import argparse
 import dataclasses
+import datetime
 import json
 import logging
 import os
@@ -16,7 +17,7 @@ import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any, Optional, Set
+from typing import Any
 
 import requests
 
@@ -42,7 +43,7 @@ class ScriptState:
     seen_advisories: list[GhsaId]
     # If the rotation end is coming near, this tracks the last time we alerted about it.
     # Don't want to alert more than once per day.
-    last_alert_about_rotation: Optional[float] = None
+    last_alert_about_rotation: float | None = None
 
     @classmethod
     def from_json(cls, json_data: dict[str, Any]) -> "ScriptState":
@@ -69,15 +70,19 @@ class ScriptState:
         tmp_file.rename(state_file)
 
 
+@dataclasses.dataclass(frozen=True)
+class ScriptEmailInfo:
+    creds: EmailCreds
+    recipient: str
+
+
 # Flags passed to the script,
 @dataclasses.dataclass(frozen=True)
 class ScriptInvocation:
-    email_creds: EmailCreds
-    email_recipient: str
     repo_name: str
     github_token: str
     now_timestamp: float
-    dry_run: bool
+    email_info: ScriptEmailInfo | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -87,38 +92,69 @@ class SecurityAdvisory:
     collaborators: list[str]
 
 
-def list_unpublished_security_advisories(
-    repo_name: str, github_token: str
-) -> list[SecurityAdvisory]:
+def extract_next_page_from_header(resp: requests.Response) -> str | None:
+    """Extracts the next page URL from the Link header of the response."""
+    link_header = resp.headers.get("Link")
+    if not link_header:
+        return None
+
+    for link in link_header.split(","):
+        if link.endswith('rel="next"'):
+            return link.split(";")[0].strip("<> ")
+    return None
+
+
+def fetch_all_security_advisories_of_type(
+    repo_name: str,
+    github_token: str,
+    state: str,
+) -> list[dict[str, Any]]:
+    """Iterates all security advisories for the given repo."""
     # Uses the API here:
-    # https://docs.github.com/en/rest/security-advisories/repository-advisories?apiVersion=2022-11-28#update-a-repository-security-advisory
-    resp = requests.get(
-        f"https://api.github.com/repos/{repo_name}/security-advisories",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {github_token}",
-            "GitHub-Api-Version": "2022-11-28",
-        },
-    )
-
-    if not resp.ok:
-        # Pretend these was nothing if there was an error, logging as `warning`
-        # so it can be debugged with `--debug`.
-        logging.warning(
-            "Failed to list security advisories for %s: %d %s",
-            repo_name,
-            resp.status_code,
-            resp.text,
-        )
-        return []
-
-    advisories_json = resp.json()
+    # https://docs.github.com/en/rest/security-advisories/repository-advisories?apiVersion=2022-11-28#list-repository-security-advisories
+    url = f"https://api.github.com/repos/{repo_name}/security-advisories?state={state}"
+    request_headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {github_token}",
+        "GitHub-Api-Version": "2022-11-28",
+    }
     results = []
-    for advisory in advisories_json:
-        state = advisory["state"]
+    while url:
+        resp = requests.get(
+            url,
+            headers=request_headers,
+        )
+        if not resp.ok:
+            # Pretend these was nothing if there was an error, logging as `warning`
+            # so it can be debugged with `--debug`.
+            logging.warning(
+                "Failed to list security advisories at URL %s: %d %s",
+                url,
+                resp.status_code,
+                resp.text,
+            )
+            break
+
+        results += resp.json()
+        url = extract_next_page_from_header(resp)
+
+    return results
+
+
+def list_unpublished_security_advisories(
+    repo_name: str, github_token: str, now: float
+) -> list[SecurityAdvisory]:
+    results = []
+    total_security_advisories = 0
+    advisories = fetch_all_security_advisories_of_type(repo_name, github_token, "draft")
+    advisories += fetch_all_security_advisories_of_type(repo_name, github_token, "triage")
+    for advisory in advisories:
         logging.debug("Examining advisory %s", advisory)
-        if state not in ("draft", "triage"):
-            continue
+
+        total_security_advisories += 1
+        state = advisory["state"]
+        assert state in ("draft", "triage"), state
+
         collaborators = [x["login"] for x in advisory.get("collaborating_users", ())]
         results.append(
             SecurityAdvisory(
@@ -128,18 +164,20 @@ def list_unpublished_security_advisories(
             )
         )
 
+    results.sort(key=lambda x: x.id)
+    logging.info("Total security advisories fetched: %d", total_security_advisories)
     logging.info("%d draft security advisories found.", len(results))
     return results
 
 
 @dataclasses.dataclass(frozen=True)
 class RotationState:
-    all_members: Set[str]
-    current_members: Set[str]
+    all_members: set[str]
+    current_members: set[str]
     final_rotation_start: float
 
 
-def load_rotation_state(now_timestamp: float) -> Optional[RotationState]:
+def load_rotation_state(now_timestamp: float) -> RotationState | None:
     rotation_members_file = rotations.RotationMembersFile.parse_file(
         rotations.ROTATION_MEMBERS_FILE,
     )
@@ -224,7 +262,7 @@ def email_about_advisory(
 def maybe_email_about_rotation_end(
     invocation: ScriptInvocation,
     state: ScriptState,
-    rotation_state: Optional[RotationState],
+    rotation_state: RotationState | None,
 ) -> ScriptState:
     if rotation_state:
         time_to_last_start = (
@@ -252,7 +290,9 @@ def maybe_email_about_rotation_end(
         state,
         last_alert_about_rotation=invocation.now_timestamp,
     )
-    if invocation.dry_run:
+
+    email_info = invocation.email_info
+    if not email_info:
         logging.info(
             "dry-run: would send email about rotation end for %s",
             invocation.repo_name,
@@ -269,8 +309,8 @@ def maybe_email_about_rotation_end(
         issue = "no rotation is currently scheduled"
 
     email_ok = try_email_llvm_security_team(
-        email_creds=invocation.email_creds,
-        email_recipient=invocation.email_recipient,
+        email_creds=email_info.creds,
+        email_recipient=email_info.recipient,
         subject=f"Rotation schedule running short for {invocation.repo_name}",
         body=textwrap.dedent(
             f"""\
@@ -297,7 +337,7 @@ def run_script(
     rotation_state: RotationState,
 ) -> ScriptState:
     draft_security_advisories = list_unpublished_security_advisories(
-        invocation.repo_name, invocation.github_token
+        invocation.repo_name, invocation.github_token, now=invocation.now_timestamp,
     )
 
     failed_alerts_for_advisories = set()
@@ -322,17 +362,18 @@ def run_script(
             )
             continue
 
-        if invocation.dry_run:
+        email_info = invocation.email_info
+        if not email_info:
             logging.info(
-                "dry-run: would add send email about advisory %s, mentioning %s",
+                "dry-run: would send email about advisory %s, mentioning %s",
                 advisory.id,
                 current_oncall,
             )
             continue
 
         email_success = email_about_advisory(
-            email_creds=invocation.email_creds,
-            email_recipient=invocation.email_recipient,
+            email_creds=email_info.creds,
+            email_recipient=email_info.recipient,
             repo_name=invocation.repo_name,
             advisory=advisory,
             oncall_members=current_oncall,
@@ -403,7 +444,6 @@ def parse_args() -> argparse.Namespace:
 
     args = parser.parse_args()
 
-    # Validate required arguments
     if not args.github_repo:
         parser.error(
             "GitHub repository must be specified either via --github-repo or GITHUB_REPOSITORY env var."
@@ -412,18 +452,20 @@ def parse_args() -> argparse.Namespace:
         parser.error(
             "GitHub token must be specified either via --github-token or GITHUB_TOKEN env var."
         )
-    if not args.email_username:
-        parser.error(
-            "Email username must be specified either via --email-username or GMAIL_USER env var."
-        )
-    if not args.email_password:
-        parser.error(
-            "Email password must be specified either via --email-password or GMAIL_PASSWORD env var."
-        )
-    if not args.email_recipient:
-        parser.error(
-            "Recipient email must be specified either via --email-recipient or EMAIL_RECIPIENT env var."
-        )
+
+    if not args.dry_run:
+        if not args.email_username:
+            parser.error(
+                "Email username must be specified either via --email-username or GMAIL_USER env var."
+            )
+        if not args.email_password:
+            parser.error(
+                "Email password must be specified either via --email-password or GMAIL_PASSWORD env var."
+            )
+        if not args.email_recipient:
+            parser.error(
+                "Recipient email must be specified either via --email-recipient or EMAIL_RECIPIENT env var."
+            )
 
     return args
 
@@ -436,19 +478,25 @@ def main() -> None:
         level=logging.DEBUG if opts.debug else logging.INFO,
     )
 
-    state_file: Path = opts.state_file
     now = time.time()
+    state_file: Path = opts.state_file
+    dry_run: bool = opts.dry_run
+    email_info = None
+    if not dry_run:
+        email_info = ScriptEmailInfo(
+            creds=EmailCreds(
+                username=opts.email_username, password=opts.email_password
+            ),
+            recipient=opts.email_recipient,
+        )
+
     script_state = ScriptState.load_from_file(state_file)
     rotation_state = load_rotation_state(now)
     script_invocation = ScriptInvocation(
-        email_creds=EmailCreds(
-            username=opts.email_username, password=opts.email_password
-        ),
-        email_recipient=opts.email_recipient,
         repo_name=opts.github_repo,
         github_token=opts.github_token,
         now_timestamp=now,
-        dry_run=opts.dry_run,
+        email_info=email_info,
     )
 
     if rotation_state:
@@ -470,9 +518,16 @@ def main() -> None:
             rotation_state=rotation_state,
         )
 
-    if new_script_state != script_state:
+    if new_script_state == script_state:
+        return
+
+    if dry_run:
+        write_to_file = state_file.with_suffix(".dry-run")
+        logging.info("dry-run: writing new state to file %s", write_to_file)
+    else:
         logging.debug("Writing new state file...")
-        new_script_state.save_to_file(state_file)
+        write_to_file = state_file
+    new_script_state.save_to_file(write_to_file)
 
 
 if __name__ == "__main__":

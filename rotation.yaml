@@ -8,5 +8,8 @@
 rotations:
 - members:
   - foo
+  start_time: '2024-09-25T00:00:00+00:00'
+- members:
+  - foo
   - bar
-  start_time: '2025-05-25T00:00:00+00:00'
+  start_time: '2025-09-25T00:00:00+00:00'
