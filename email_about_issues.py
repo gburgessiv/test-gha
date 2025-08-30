@@ -101,7 +101,7 @@ def extract_next_page_from_header(resp: requests.Response) -> str | None:
     for link in link_header.split(","):
         split_link = link.split(";", 1)
         if len(split_link) < 2:
-            logging.warning("Malformed Link header: %s", link_header)
+            logging.warning("Malformed Link: %s", link)
             continue
         url, meta = split_link
         if 'rel="next"' in meta:
@@ -160,6 +160,8 @@ def list_unpublished_security_advisories(
 
         total_security_advisories += 1
         state = advisory["state"]
+        # This should be guaranteed by the
+        # 'fetch_all_security_advisories_of_type' function.
         assert state in ("draft", "triage"), state
 
         collaborators = [x["login"] for x in advisory.get("collaborating_users", ())]
