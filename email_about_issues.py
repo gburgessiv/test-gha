@@ -117,7 +117,9 @@ def fetch_all_security_advisories_of_type(
     """Iterates all security advisories for the given repo."""
     # Uses the API here:
     # https://docs.github.com/en/rest/security-advisories/repository-advisories?apiVersion=2022-11-28#list-repository-security-advisories
-    url = f"https://api.github.com/repos/{repo_name}/security-advisories?state={state}"
+    url: str | None = (
+        f"https://api.github.com/repos/{repo_name}/security-advisories?state={state}"
+    )
     request_headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {github_token}",
