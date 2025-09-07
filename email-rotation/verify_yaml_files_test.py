@@ -4,6 +4,7 @@ import unittest
 
 import rotations
 
+
 class TestRotationYamlFilesParse(unittest.TestCase):
     """Ensures our yaml files parse."""
 
