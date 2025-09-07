@@ -111,12 +111,13 @@ def extract_next_page_from_header(resp: requests.Response) -> str | None:
 
 def requests_get_with_retry(url: str, headers: dict[str, Any]) -> requests.Response:
     i = 0
+    max_retries = 3
     while True:
         resp = requests.get(url, headers=headers)
         if resp.ok:
             return resp
         logging.warning("GETing %s failed: %d %s", url, resp.status_code, resp.text)
-        if i >= 3:
+        if i >= max_retries:
             resp.raise_for_status()
         i += 1
         time.sleep(i * 60)
