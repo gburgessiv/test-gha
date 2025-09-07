@@ -109,6 +109,20 @@ def extract_next_page_from_header(resp: requests.Response) -> str | None:
     return None
 
 
+def requests_get_with_retry(url: str, headers: dict[str, Any]) -> requests.Response:
+    i = 0
+    max_retries = 3
+    while True:
+        resp = requests.get(url, headers=headers)
+        if resp.ok:
+            return resp
+        logging.warning("GETing %s failed: %d %s", url, resp.status_code, resp.text)
+        if i >= max_retries:
+            resp.raise_for_status()
+        i += 1
+        time.sleep(i * 60)
+
+
 def fetch_all_security_advisories_of_type(
     repo_name: str,
     github_token: str,
@@ -127,20 +141,10 @@ def fetch_all_security_advisories_of_type(
     }
     results = []
     while url:
-        resp = requests.get(
+        resp = requests_get_with_retry(
             url,
             headers=request_headers,
         )
-        if not resp.ok:
-            # Pretend these was nothing if there was an error, logging as `warning`
-            # so it can be debugged with `--debug`.
-            logging.warning(
-                "Failed to list security advisories at URL %s: %d %s",
-                url,
-                resp.status_code,
-                resp.text,
-            )
-            break
 
         results += resp.json()
         url = extract_next_page_from_header(resp)

@@ -6,7 +6,7 @@ import dataclasses
 import datetime
 import logging
 from pathlib import Path
-from typing import Dict, Iterator, List
+from typing import Iterator
 
 import rotations
 
@@ -14,9 +14,9 @@ MIN_TIME_UTC = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
 
 
 def find_most_recent_service_times(
-    rotations: List[rotations.Rotation],
-    members: List[str],
-) -> Dict[str, datetime.datetime]:
+    rotations: list[rotations.Rotation],
+    members: list[str],
+) -> dict[str, datetime.datetime]:
     """Returns a dictionary mapping member names to their last service date."""
     # Give new people the minimum possible service time, so they're
     # scheduled promptly.
@@ -32,8 +32,8 @@ def find_most_recent_service_times(
 
 
 def generate_additional_rotations(
-    prior_rotations: List[rotations.Rotation],
-    members: List[str],
+    prior_rotations: list[rotations.Rotation],
+    members: list[str],
     rotation_length_weeks: int,
     people_per_rotation: int,
     now: datetime.datetime,
